@@ -9,7 +9,8 @@ Override with REEL_VOICE env var.
 import asyncio
 import json, os, sys, subprocess
 
-VOICE = os.environ.get("REEL_VOICE", "en-US-GuyNeural")
+VOICE = os.environ.get("REEL_VOICE", "en-US-RogerNeural")
+FALLBACK_VOICE = "en-US-ChristopherNeural"
 
 def duration(path):
     p = subprocess.run(["ffprobe", "-v", "error", "-show_entries",
@@ -17,9 +18,25 @@ def duration(path):
                        capture_output=True, text=True)
     return float(p.stdout.strip())
 
+def to_ssml(text):
+    """Wrap the script in SSML with natural pauses so delivery doesn't sound flat."""
+    import re, html as htmllib
+    parts = re.split(r"(?<=[.!?])\s+", text.strip())
+    inner = '<break time="450ms"/>'.join(htmllib.escape(p) for p in parts if p)
+    return (f'<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" '
+            f'xml:lang="en-US"><voice name="{VOICE}">'
+            f'<prosody rate="-4%" pitch="+2%">{inner}</prosody>'
+            f"</voice></speak>")
+
 async def synth_edge(text, out):
     import edge_tts
-    await edge_tts.Communicate(text, VOICE).save(out)
+    ssml = to_ssml(text)
+    try:
+        await edge_tts.Communicate(ssml, VOICE).save(out)
+    except Exception:
+        # fallback voice if the primary isn't available
+        ssml2 = ssml.replace(VOICE, FALLBACK_VOICE)
+        await edge_tts.Communicate(ssml2, FALLBACK_VOICE).save(out)
 
 def synth_gtts(text, out):
     from gtts import gTTS
