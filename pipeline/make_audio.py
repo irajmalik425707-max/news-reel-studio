@@ -9,8 +9,8 @@ Override with REEL_VOICE env var.
 import asyncio
 import json, os, sys, subprocess
 
-VOICE = os.environ.get("REEL_VOICE", "en-US-RogerNeural")
-FALLBACK_VOICE = "en-US-ChristopherNeural"
+VOICE = os.environ.get("REEL_VOICE", "en-US-ChristopherNeural")
+FALLBACK_VOICE = "en-US-AriaNeural"
 
 def duration(path):
     p = subprocess.run(["ffprobe", "-v", "error", "-show_entries",
@@ -20,13 +20,13 @@ def duration(path):
 
 async def synth_edge(text, out):
     import edge_tts
-    # Slightly slower rate + a touch of pitch for a natural news-anchor delivery.
+    # Natural news-anchor delivery at normal pace.
     # (edge-tts builds its own SSML, so we pass plain text plus prosody params.)
     try:
-        await edge_tts.Communicate(text, VOICE, rate="-4%", pitch="+4%").save(out)
+        await edge_tts.Communicate(text, VOICE, rate="+0%", pitch="+0%").save(out)
     except Exception:
         # fallback voice if the primary isn't available
-        await edge_tts.Communicate(text, FALLBACK_VOICE, rate="-4%", pitch="+4%").save(out)
+        await edge_tts.Communicate(text, FALLBACK_VOICE, rate="+0%", pitch="+0%").save(out)
 
 def synth_gtts(text, out):
     from gtts import gTTS
