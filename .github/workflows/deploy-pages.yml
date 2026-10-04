@@ -1,8 +1,14 @@
 name: Deploy Pages
 
+# Publishes web/ to GitHub Pages. Runs on every push to main,
+# so the scheduled trending refresh auto-updates the live site.
 on:
   push:
     branches: [main]
+  schedule:
+    # Runs 30 min after each trending refresh (which runs at :00 every 6h).
+    # Needed because GitHub doesn't auto-run workflows for bot-pushed commits.
+    - cron: "30 */6 * * *"
   workflow_dispatch:
 
 permissions:
@@ -23,12 +29,15 @@ jobs:
     steps:
       - name: Check out repo
         uses: actions/checkout@v4
+
       - name: Set up Pages
         uses: actions/configure-pages@v5
+
       - name: Upload site
         uses: actions/upload-pages-artifact@v3
         with:
           path: web
+
       - name: Deploy to Pages
         id: deployment
         uses: actions/deploy-pages@v5
