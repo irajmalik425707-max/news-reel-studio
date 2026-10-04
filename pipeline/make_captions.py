@@ -15,12 +15,11 @@ import json, os, sys, subprocess
 import numpy as np
 
 def caption_font():
-    if os.path.exists("/usr/share/fonts/truetype/noto/NotoSans-Black.ttf"):
-        return "Noto Sans Black"
-    return "DejaVu Sans"  # GitHub runners etc.
+    # Anton (bundled in pipeline/fonts, installed by workflow) for reel-style look
+    return "Anton"
 
 FONT = caption_font()
-FSIZE = 96
+FSIZE = 92
 
 def transcribe_words(mp3):
     from faster_whisper import WhisperModel
@@ -68,7 +67,7 @@ ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Cap,{FONT},{FSIZE},{primary},{primary},{outline},&H80000000,-1,0,0,0,100,100,0.5,0,1,7,0,5,60,60,60,1
+Style: Cap,{FONT},{FSIZE},{primary},{primary},{outline},&H80000000,-1,0,0,0,100,100,0.5,0,1,8,2,2,60,60,420,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
