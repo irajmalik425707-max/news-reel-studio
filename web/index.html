@@ -42,16 +42,19 @@
 </head>
 <body>
 <h1>🎬 News Reel Studio</h1>
+<div class="sub">✨ Roz 2 fresh reels khud ban kar neeche aa jayengi — kuch karne ki zaroorat nahi.</div>
 <div class="sub" id="updatedLine">Loading trending news…</div>
 
-<div class="panel">
-  <h2>⚙️ Setup (one time)</h2>
+<details class="panel">
+  <summary style="cursor:pointer;font-weight:700;font-size:16px;">⚙️ Manual build setup (optional)</summary>
+  <div style="margin-top:10px;">
   <div class="row"><input type="text" id="cfgOwner" placeholder="GitHub username"></div>
   <div class="row"><input type="password" id="cfgToken" placeholder="GitHub token (repo scope)"></div>
   <div class="row"><input type="password" id="cfgKey" placeholder="Build key (team secret)"></div>
   <button class="secondary" id="saveCfg">Save settings</button>
-  <div class="hint">Token &amp; key stay in this browser only (localStorage) — never in the code.</div>
-</div>
+  <div class="hint">Sirf apni pasand ki khabron par reel banane ke liye — ek dafa bharo. Token &amp; key sirf is browser me rehte hain (localStorage), code me nahi.</div>
+  </div>
+</details>
 
 <h2 style="margin:6px 0 12px;font-size:17px;">🔥 Trending now <span style="font-weight:400;color:var(--muted);font-size:13px;">— tap to select</span></h2>
 <div id="stories"></div>
@@ -60,14 +63,14 @@
   <h2>🎥 Build reel</h2>
   <button id="buildBtn">Build reel from selected</button>
   <div id="status"></div>
-  <div class="hint">No selection = auto mode (top 5). Build takes ~10–15 min. You can close this page; the video appears under “Your reels”.</div>
+  <div class="hint">No selection = auto mode (top 5). Needs manual setup above. Build takes ~10–15 min — you can close this page; the video appears under “Your reels”.</div>
 </div>
 
 <h2 style="margin:6px 0 12px;font-size:17px;">📼 Your reels</h2>
 <div id="reels"><div class="sub">Loading…</div></div>
 
 <details>
-  <summary>How to get a GitHub token</summary>
+  <summary>How to get a GitHub token (only for manual builds)</summary>
   <ol>
     <li>Go to <code>github.com/settings/tokens/new</code></li>
     <li>Note: <code>news-reel</code>, expiration: no expiration (or 1 year)</li>
@@ -78,10 +81,11 @@
 
 <script>
 const REPO = "news-reel-studio";
+const DEFAULT_OWNER = "irajmalik425707-max";
 const $ = id => document.getElementById(id);
 const store = {
   get k(){ return {
-    owner: localStorage.getItem("nrs_owner")||"",
+    owner: localStorage.getItem("nrs_owner")||DEFAULT_OWNER,
     token: localStorage.getItem("nrs_token")||"",
     key: localStorage.getItem("nrs_key")||"" }; },
   set(v){ localStorage.setItem("nrs_owner",v.owner); localStorage.setItem("nrs_token",v.token); localStorage.setItem("nrs_key",v.key); }
