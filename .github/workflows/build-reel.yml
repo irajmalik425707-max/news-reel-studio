@@ -15,9 +15,6 @@ permissions:
   contents: write   # for creating the release
   issues: write     # for commenting/closing the build issue
 
-permissions:
-  contents: write   # for creating the release
-
 jobs:
   build:
     runs-on: ubuntu-latest
