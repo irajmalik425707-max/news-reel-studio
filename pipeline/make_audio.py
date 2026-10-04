@@ -21,12 +21,13 @@ def duration(path):
 async def synth_edge(text, out):
     import edge_tts
     # Natural news-anchor delivery at normal pace.
-    # (edge-tts builds its own SSML, so we pass plain text plus prosody params.)
+    # (edge-tts builds its own SSML, so we pass plain text plus prosody params.
+    #  pitch must be in Hz like "+0Hz", NOT percent.)
     try:
-        await edge_tts.Communicate(text, VOICE, rate="+0%", pitch="+0%").save(out)
+        await edge_tts.Communicate(text, VOICE, rate="+0%", pitch="+0Hz").save(out)
     except Exception:
         # fallback voice if the primary isn't available
-        await edge_tts.Communicate(text, FALLBACK_VOICE, rate="+0%", pitch="+0%").save(out)
+        await edge_tts.Communicate(text, FALLBACK_VOICE, rate="+0%", pitch="+0Hz").save(out)
 
 def synth_gtts(text, out):
     from gtts import gTTS
