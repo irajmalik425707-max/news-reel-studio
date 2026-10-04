@@ -42,7 +42,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install yt-dlp edge-tts gTTS faster-whisper
-          sudo apt-get update -qq && sudo apt-get install -y -qq fonts-noto > /dev/null 2>&1 || true
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg fonts-noto
           ffmpeg -version | head -1
           yt-dlp --version
 
