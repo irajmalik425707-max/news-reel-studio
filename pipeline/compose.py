@@ -59,10 +59,11 @@ def main():
         dur = durs[idx]
         frames = int(dur * FPS)
         img = os.path.join(work, f"img_{s['id']}.jpg")
+        thumb = os.path.join(work, f"thumb_{s['id']}.jpg")
         clip = os.path.join(work, f"clip_{s['id']}.mp4")
         vfile = os.path.join(work, f"vseg_{s['id']}.mp4")
 
-        # Real news video clip preferred; Ken Burns image as fallback
+        # Visual priority: real video clip > YouTube thumbnail > og:image > gradient
         if os.path.exists(clip):
             inp = ["-stream_loop", "-1", "-i", clip]
             vf = (f"scale=1080:1920:force_original_aspect_ratio=increase,"
@@ -79,8 +80,10 @@ def main():
                 f"zoompan={zb}:d={frames}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s={W}x{H}:fps={FPS},"
                 f"format=yuv420p"
             )
-            if os.path.exists(img):
-                inp = ["-loop", "1", "-i", img]
+            use_img = thumb if os.path.exists(thumb) else img
+            if os.path.exists(use_img):
+                inp = ["-loop", "1", "-i", use_img]
+                print(f"  vseg_{s['id']}: using image {os.path.basename(use_img)}")
             else:  # fallback: dark gradient card if image missing
                 inp = ["-f", "lavfi", "-i",
                        f"color=c=0x141821:s={W}x{H}:r={FPS}:d={dur}"]
