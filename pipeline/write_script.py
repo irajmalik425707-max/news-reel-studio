@@ -9,10 +9,10 @@ text = spoken-form voiceover, ~40-60 words: hook + description condensed + close
 import json, os, re, sys
 
 CLOSERS = [
-    "Police are on the scene. We'll update you as more comes in.",
-    "An investigation is underway — stay with us for updates.",
-    "Authorities are piecing it together. More to come.",
-    "This story is still developing — we'll keep you posted.",
+    "Police are on the scene right now. We'll update you the second we know more.",
+    "An investigation is underway — and we'll stay on it.",
+    "Authorities are piecing together what happened. More to come.",
+    "This story is still developing. Stay with us.",
 ]
 
 def extract_place(title):
@@ -29,16 +29,41 @@ def extract_place(title):
     return place or None
 
 CRIME_HOOKS = [
-    "Breaking news out of {place} —",
-    "Shocking developments in {place} —",
-    "A {place} neighborhood is on edge tonight —",
+    "Breaking news out of {place} — {what}",
+    "Shocking scenes in {place} tonight — {what}",
+    "This just in from {place} — {what}",
+    "A {place} community is reeling tonight — {what}",
 ]
+
+def vivid_body(story, max_words=55):
+    """Build a punchy anchor-style body from related headlines."""
+    sents = related_headlines(story)
+    out, count = [], 0
+    for s in sents:
+        # punch up passive phrasing
+        s = re.sub(r"(?i)\bis under investigation\b", "is now a full-blown investigation", s)
+        w = len(s.split())
+        if count + w > max_words and out:
+            break
+        out.append(s)
+        count += w
+        if len(out) >= 3:
+            break
+    text = " ".join(out)
+    if not text:
+        text = ("Witnesses describe a chaotic scene as officers rushed in, "
+                "and officials are still working to confirm exactly what unfolded.")
+    return text
 
 def crime_hook(title):
     place = extract_place(title) or "the city"
+    # what happened, in a few vivid words
+    what = re.sub(r"\s+", " ", title).strip()
+    what = what[:70].rstrip(" .")
+    if what and what[0].isupper():
+        what = what[0].lower() + what[1:]
     import random
-    h = random.choice(CRIME_HOOKS).format(place=place)
-    return h
+    return random.choice(CRIME_HOOKS).format(place=place, what=what) + "."
 
 def news_text(story, i):
     crime = bool(story.get("crime"))
@@ -46,13 +71,13 @@ def news_text(story, i):
     if crime:
         kicker = "CRIME ALERT"
         hook = crime_hook(title)
+        body = vivid_body(story)
     elif "trending" in (story.get("feed", "") or ""):
         kicker, hook = "TRENDING", "Trending right now —"
+        body = condense(story, 52)
     else:
         kicker, hook = "WORLD NEWS", "In world news —"
-    body = condense(story, 52)
-    # make the body sound like an anchor, not a headline read-out
-    body = re.sub(r"(?i)^a\s+", "One ", body, count=1)
+        body = condense(story, 52)
     closer = CLOSERS[i % len(CLOSERS)]
     text = f"{hook} {body} {closer}"
     return kicker, text
