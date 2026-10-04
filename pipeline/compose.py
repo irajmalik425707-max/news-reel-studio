@@ -60,35 +60,60 @@ def main():
         frames = int(dur * FPS)
         img = os.path.join(work, f"img_{s['id']}.jpg")
         thumb = os.path.join(work, f"thumb_{s['id']}.jpg")
-        ai = os.path.join(work, f"ai_{s['id']}.jpg")
         clip = os.path.join(work, f"clip_{s['id']}.mp4")
         vfile = os.path.join(work, f"vseg_{s['id']}.mp4")
 
-        # Visual priority: real video clip > AI visual > YouTube thumbnail > og:image > gradient
+        # Visual priority: real video clip > AI visuals > YouTube thumbnail > og:image > gradient
+        use_filter_complex = False
         if os.path.exists(clip):
             inp = ["-stream_loop", "-1", "-i", clip]
-            vf = (f"scale=1080:1920:force_original_aspect_ratio=increase,"
-                  f"crop=1080:1920,setsar=1,format=yuv420p")
+            base_vf = (f"scale=1080:1920:force_original_aspect_ratio=increase,"
+                       f"crop=1080:1920,setsar=1,format=yuv420p")
             print(f"  vseg_{s['id']}: using VIDEO clip")
         else:
-            # Ken Burns: alternate slow zoom-in / zoom-out
-            if idx % 2 == 0:
-                zb = f"z='min(zoom+0.0011,1.28)'"
-            else:
-                zb = f"z='if(eq(on,1),1.28,max(zoom-0.0011,1.0))'"
-            vf = (
-                f"scale=2160:3840:force_original_aspect_ratio=increase,crop=2160:3840,"
-                f"zoompan={zb}:d={frames}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s={W}x{H}:fps={FPS},"
-                f"format=yuv420p"
-            )
-            use_img = ai if os.path.exists(ai) else (thumb if os.path.exists(thumb) else img)
-            if os.path.exists(use_img):
-                inp = ["-loop", "1", "-i", use_img]
-                print(f"  vseg_{s['id']}: using image {os.path.basename(use_img)}")
-            else:  # fallback: dark gradient card if image missing
+            # gather shots: up to 3 AI visuals, else thumbnail, else og:image
+            shots = [os.path.join(work, f"ai_{s['id']}_{j}.jpg") for j in (1, 2, 3)]
+            shots = [p for p in shots if os.path.exists(p)]
+            if not shots:
+                single = thumb if os.path.exists(thumb) else img
+                shots = [single] if os.path.exists(single) else []
+            if not shots:
+                # fallback: dark gradient card if no image at all
                 inp = ["-f", "lavfi", "-i",
                        f"color=c=0x141821:s={W}x{H}:r={FPS}:d={dur}"]
-                vf = f"format=yuv420p"
+                base_vf = "format=yuv420p"
+                print(f"  vseg_{s['id']}: using gradient (no visuals)")
+            elif len(shots) == 1:
+                use_img = shots[0]
+                inp = ["-loop", "1", "-i", use_img]
+                zb = ("z='min(zoom+0.0011,1.28)'" if idx % 2 == 0
+                      else "z='if(eq(on,1),1.28,max(zoom-0.0011,1.0))'")
+                base_vf = (
+                    f"scale=2160:3840:force_original_aspect_ratio=increase,crop=2160:3840,"
+                    f"zoompan={zb}:d={frames}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s={W}x{H}:fps={FPS},"
+                    f"format=yuv420p")
+                print(f"  vseg_{s['id']}: using image {os.path.basename(use_img)}")
+            else:
+                # MULTI-SHOT: hard cuts between visuals, each with its own Ken Burns move
+                use_filter_complex = True
+                inp = []
+                nshots = len(shots)
+                fper = [frames // nshots] * nshots
+                for k in range(frames % nshots):
+                    fper[k] += 1
+                fc = []
+                for j, shot in enumerate(shots):
+                    inp += ["-loop", "1", "-i", shot]
+                    zb = ("z='min(zoom+0.0012,1.30)'" if j % 2 == 0
+                          else "z='if(eq(on,1),1.30,max(zoom-0.0012,1.0))'")
+                    fc.append(
+                        f"[{j}:v]scale=2160:3840:force_original_aspect_ratio=increase,"
+                        f"crop=2160:3840,zoompan={zb}:d={fper[j]}:"
+                        f"x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s={W}x{H}:fps={FPS},"
+                        f"format=yuv420p,setsar=1[vs{j}]")
+                fc.append("".join(f"[vs{j}]" for j in range(nshots)) +
+                          f"concat=n={nshots}:v=1:a=0[vbase]")
+                print(f"  vseg_{s['id']}: using {nshots} AI shots with cuts")
 
         # ---- overlays ----
         lines = wrap(s["headline"])
@@ -99,7 +124,7 @@ def main():
         kicker = s.get("kicker", "TOP NEWS").upper()
         kcol = "0xC81E1E" if "CRIME" in kicker else "0x1E5AC8"
 
-        filters = [vf]
+        filters = [] if use_filter_complex else [base_vf]
         # readability gradients
         filters.append(f"drawbox=x=0:y=0:w={W}:h=300:c=black@0.55:t=fill")
         filters.append(f"drawbox=x=0:y={H-760}:w={W}:h=760:c=black@0.55:t=fill")
@@ -141,10 +166,18 @@ def main():
         if idx == len(segs) - 1:
             filters.append(f"fade=t=out:st={dur-0.6:.2f}:d=0.6")
 
-        sh(["ffmpeg", "-y", *inp, "-t", f"{dur:.2f}",
-            "-vf", ",".join(filters),
-            "-c:v", "libx264", "-preset", "medium", "-crf", "20",
-            "-r", str(FPS), "-pix_fmt", "yuv420p", vfile])
+        if use_filter_complex:
+            fc.append(f"[vbase]{','.join(filters)}[vout]")
+            sh(["ffmpeg", "-y", *inp,
+                "-filter_complex", ";".join(fc),
+                "-map", "[vout]", "-t", f"{dur:.2f}",
+                "-c:v", "libx264", "-preset", "medium", "-crf", "20",
+                "-r", str(FPS), "-pix_fmt", "yuv420p", vfile])
+        else:
+            sh(["ffmpeg", "-y", *inp, "-t", f"{dur:.2f}",
+                "-vf", ",".join(filters),
+                "-c:v", "libx264", "-preset", "medium", "-crf", "20",
+                "-r", str(FPS), "-pix_fmt", "yuv420p", vfile])
         seg_files.append(vfile)
         audio_inputs += [os.path.join(work, f"seg_{s['id']}.mp3")]
         t0 += dur
