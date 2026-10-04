@@ -35,24 +35,30 @@ CRIME_HOOKS = [
     "A {place} community is reeling tonight — {what}",
 ]
 
-def vivid_body(story, max_words=55):
-    """Build a punchy anchor-style body from related headlines."""
+def vivid_body(story, max_words=60):
+    """Build a story-arc news body: scene -> details -> status.
+    Compact enough to keep the reel under a minute, vivid enough to feel like news."""
     sents = related_headlines(story)
     out, count = [], 0
     for s in sents:
         # punch up passive phrasing
         s = re.sub(r"(?i)\bis under investigation\b", "is now a full-blown investigation", s)
+        s = re.sub(r"(?i)officials? (said|say)", "authorities confirm", s)
         w = len(s.split())
         if count + w > max_words and out:
             break
         out.append(s)
         count += w
-        if len(out) >= 3:
+        if len(out) >= 5:
             break
     text = " ".join(out)
     if not text:
-        text = ("Witnesses describe a chaotic scene as officers rushed in, "
-                "and officials are still working to confirm exactly what unfolded.")
+        text = ("Witnesses describe a chaotic scene as officers rushed in. "
+                "Paramedics were on the scene within minutes, and the area was "
+                "quickly sealed off as detectives began piecing together what unfolded.")
+    elif len(text.split()) < 30:
+        text += (" Witnesses describe a chaotic scene as officers rushed in, "
+                 "and the area was quickly sealed off while detectives got to work.")
     return text
 
 def crime_hook(title):
@@ -175,6 +181,7 @@ def main():
             "kicker": kicker,
             "headline": headline_of(s.get("title", "")),
             "source": s.get("source", ""),
+            "place": extract_place(s.get("title", "")) or "",
             "text": text,
         })
     json.dump(segs, open(out, "w"), indent=1, ensure_ascii=False)
