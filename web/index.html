@@ -53,18 +53,12 @@
 <div class="sub">✨ Roz 2 fresh reels khud ban kar neeche aa jayengi — kuch karne ki zaroorat nahi.</div>
 <div class="sub" id="updatedLine">Loading trending news…</div>
 
-<details class="panel">
-  <summary style="cursor:pointer;font-weight:700;font-size:16px;">⚙️ Manual build setup (optional)</summary>
-  <div style="margin-top:10px;">
-  <div class="row"><input type="text" id="cfgOwner" placeholder="GitHub username"></div>
-  <div class="row"><input type="password" id="cfgToken" placeholder="GitHub token (repo scope)"></div>
-  <div class="row"><input type="password" id="cfgKey" placeholder="Build key (team secret)"></div>
-  <button class="secondary" id="saveCfg">Save settings</button>
-  <div class="hint">Sirf apni pasand ki khabron par reel banane ke liye — ek dafa bharo. Token &amp; key sirf is browser me rehte hain (localStorage), code me nahi.</div>
-  </div>
-</details>
+<div class="panel" style="text-align:center;">
+  <div style="font-size:15px;font-weight:700;margin-bottom:6px;">🎥 Kisi khaas khabar par reel chahiye?</div>
+  <div class="hint" style="margin-top:0;">Muse ko bata do kaunsi story hai — main bana dunga.</div>
+</div>
 
-<h2 style="margin:6px 0 12px;font-size:17px;">🔥 Trending now <span style="font-weight:400;color:var(--muted);font-size:13px;">— tap to select</span></h2>
+<h2 style="margin:6px 0 12px;font-size:17px;">🔥 Trending now <span style="font-weight:400;color:var(--muted);font-size:13px;">— tap a story to read it</span></h2>
 <div class="chips" id="chips">
   <button class="chip active" data-f="all">All</button>
   <button class="chip" data-f="usa">🇺🇸 USA Crime</button>
@@ -74,44 +68,13 @@
 <div id="hero"></div>
 <div id="stories"></div>
 
-<div class="panel">
-  <h2>🎥 Build reel</h2>
-  <button id="buildBtn">Build reel from selected</button>
-  <div id="status"></div>
-  <div class="hint">No selection = auto mode (top 5). Needs manual setup above. Build takes ~10–15 min — you can close this page; the video appears under “Your reels”.</div>
-</div>
-
 <h2 style="margin:6px 0 12px;font-size:17px;">📼 Your reels</h2>
 <div id="reels"><div class="sub">Loading…</div></div>
 
-<details>
-  <summary>How to get a GitHub token (only for manual builds)</summary>
-  <ol>
-    <li>Go to <code>github.com/settings/tokens/new</code></li>
-    <li>Note: <code>news-reel</code>, expiration: no expiration (or 1 year)</li>
-    <li>Tick <code>repo</code> scope, generate, paste above.</li>
-    <li>Share only the <b>build key</b> with your team — never the token.</li>
-  </ol>
-</details>
-
 <script>
+const OWNER = "irajmalik425707-max";
 const REPO = "news-reel-studio";
-const DEFAULT_OWNER = "irajmalik425707-max";
 const $ = id => document.getElementById(id);
-const store = {
-  get k(){ return {
-    owner: localStorage.getItem("nrs_owner")||DEFAULT_OWNER,
-    token: localStorage.getItem("nrs_token")||"",
-    key: localStorage.getItem("nrs_key")||"" }; },
-  set(v){ localStorage.setItem("nrs_owner",v.owner); localStorage.setItem("nrs_token",v.token); localStorage.setItem("nrs_key",v.key); }
-};
-function cfg(){ return store.k; }
-function api(path, opts={}){
-  const c = cfg();
-  opts.headers = Object.assign({ "Accept":"application/vnd.github+json" }, opts.headers||{});
-  if (c.token) opts.headers["Authorization"] = "Bearer " + c.token;
-  return fetch(`https://api.github.com/repos/${c.owner}/${REPO}${path}`, opts);
-}
 function ageStr(h){
   if (h < 1) return Math.round(h*60)+"m ago";
   if (h < 24) return Math.round(h)+"h ago";
@@ -128,10 +91,10 @@ function regionFlag(s){
 }
 let activeFilter = "all";
 function cardHTML(s){
-  return `<input type="checkbox"><div><div>${badge(s)}${regionFlag(s)}</div><div class="title">${s.title}</div><div class="meta">${s.source} · ${ageStr(s.age_hours||99)}</div></div>`;
+  return `<div><div>${badge(s)}${regionFlag(s)}</div><div class="title">${s.title}</div><div class="meta">${s.source} · ${ageStr(s.age_hours||99)}</div></div>`;
 }
-function bindSelect(d){
-  d.onclick = e => { if(e.target.tagName!=="INPUT"){ const cb=d.querySelector("input"); cb.checked=!cb.checked; } d.classList.toggle("selected", d.querySelector("input").checked); };
+function bindOpen(d, s){
+  d.onclick = () => { if (s.link) window.open(s.link, "_blank"); };
 }
 function renderStories(){
   const box = $("stories"); box.innerHTML = "";
@@ -142,15 +105,15 @@ function renderStories(){
   if (top){
     const h = document.createElement("div");
     h.className = "hero"; h.dataset.id = top.id;
-    h.innerHTML = `<div><span class="badge crime">🔥 TOP CRIME STORY</span>${regionFlag(top)}</div><div class="htitle">${top.title}</div><div class="meta">${top.source} · ${ageStr(top.age_hours||99)} — tap to select for your reel</div>`;
-    bindSelect(h); heroBox.appendChild(h);
+    h.innerHTML = `<div><span class="badge crime">🔥 TOP CRIME STORY</span>${regionFlag(top)}</div><div class="htitle">${top.title}</div><div class="meta">${top.source} · ${ageStr(top.age_hours||99)} — tap to read full story</div>`;
+    bindOpen(h, top); heroBox.appendChild(h);
   }
   list.forEach(s=>{
     if (top && s.id === top.id) return; // hero already shows it
     const d = document.createElement("div");
     d.className = "card"; d.dataset.id = s.id;
     d.innerHTML = cardHTML(s);
-    bindSelect(d);
+    bindOpen(d, s);
     box.appendChild(d);
   });
   if (!list.length) box.innerHTML = '<div class="sub">Is category me abhi koi story nahi.</div>';
@@ -172,16 +135,12 @@ async function loadStories(){
     renderStories();
   }catch(e){ $("updatedLine").textContent = "Could not load stories.json yet — the scheduled refresh will create it soon."; }
 }
-function selectedIds(){
-  return [...document.querySelectorAll(".card.selected,.hero.selected")].map(c=>+c.dataset.id);
-}
 async function loadReels(){
-  const c = cfg(); const box = $("reels");
-  if(!c.owner){ box.innerHTML = '<div class="sub">Enter your GitHub username in Setup to see reels.</div>'; return; }
+  const box = $("reels");
   try{
-    const r = await fetch(`https://api.github.com/repos/${c.owner}/${REPO}/releases?per_page=10`);
+    const r = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/releases?per_page=10`);
     const rels = await r.json();
-    if(!rels.length){ box.innerHTML = '<div class="sub">No reels yet — build your first one above.</div>'; return; }
+    if(!rels.length){ box.innerHTML = '<div class="sub">Pehli reels ban rahi hain — thodi der me yahan aa jayengi.</div>'; return; }
     box.innerHTML = "";
     rels.forEach(rel=>{
       const mp4 = (rel.assets||[]).find(a=>a.name.endsWith(".mp4"));
@@ -195,31 +154,7 @@ async function loadReels(){
     });
   }catch(e){ box.innerHTML = '<div class="sub">Could not load reels.</div>'; }
 }
-$("saveCfg").onclick = ()=>{
-  store.set({owner:$("cfgOwner").value.trim(), token:$("cfgToken").value.trim(), key:$("cfgKey").value.trim()});
-  $("status").textContent = ""; alert("Saved.");
-  loadReels();
-};
-$("buildBtn").onclick = async ()=>{
-  const c = cfg();
-  if(!c.owner || !c.token || !c.key){ alert("Pehle Setup me username, token aur build key dalo."); return; }
-  const ids = selectedIds();
-  const btn = $("buildBtn"); btn.disabled = true; btn.textContent = "Starting build…";
-  $("status").innerHTML = "Triggering build…";
-  try{
-    const r = await api("/dispatches", { method:"POST",
-      body: JSON.stringify({ event_type:"build-reel", client_payload:{ story_ids: ids, build_key: c.key } }) });
-    if(r.status === 204){
-      $("status").innerHTML = "✅ Build started" + (ids.length?` for stories ${ids.join(", ")}`:" (auto: top 5)") + ".<br>~10–15 min me “Your reels” me video aa jayegi. Page band kar sakti ho.";
-    } else {
-      $("status").textContent = "Failed to trigger ("+r.status+"). Token scope check karo (repo).";
-    }
-  }catch(e){ $("status").textContent = "Network error: "+e.message; }
-  btn.disabled = false; btn.textContent = "Build reel from selected";
-};
 (function init(){
-  const c = cfg();
-  $("cfgOwner").value = c.owner; $("cfgToken").value = c.token; $("cfgKey").value = c.key;
   loadStories(); loadReels();
   setInterval(loadReels, 120000);
 })();
