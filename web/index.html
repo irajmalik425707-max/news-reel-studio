@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>News Reel Studio</title>
+<style>
+  :root { --bg:#0f1115; --card:#1a1e26; --accent:#e11d2e; --text:#f2f4f8; --muted:#9aa3b2; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; padding:16px; max-width:720px; margin:0 auto; }
+  h1 { font-size:22px; margin:8px 0 2px; }
+  .sub { color:var(--muted); font-size:13px; margin-bottom:16px; }
+  .card { background:var(--card); border-radius:12px; padding:14px; margin-bottom:12px; display:flex; gap:12px; align-items:flex-start; cursor:pointer; border:2px solid transparent; }
+  .card.selected { border-color:var(--accent); }
+  .card input[type=checkbox] { width:22px; height:22px; margin-top:4px; accent-color:var(--accent); flex-shrink:0; }
+  .badge { display:inline-block; font-size:11px; font-weight:800; padding:3px 8px; border-radius:5px; margin-bottom:6px; letter-spacing:.4px; }
+  .badge.crime { background:#c81e1e; color:#fff; }
+  .badge.world { background:#1e5ac8; color:#fff; }
+  .badge.trending { background:#b45309; color:#fff; }
+  .title { font-size:15px; font-weight:700; line-height:1.35; margin-bottom:6px; }
+  .meta { color:var(--muted); font-size:12px; }
+  .panel { background:var(--card); border-radius:12px; padding:16px; margin:18px 0; }
+  .panel h2 { font-size:16px; margin-bottom:10px; }
+  .row { display:flex; gap:8px; margin-bottom:10px; }
+  input[type=password], input[type=text] { flex:1; background:#0f1115; border:1px solid #333a46; color:var(--text); border-radius:8px; padding:10px 12px; font-size:14px; }
+  button { background:var(--accent); color:#fff; border:0; border-radius:8px; padding:12px 18px; font-size:15px; font-weight:700; cursor:pointer; width:100%; }
+  button:disabled { opacity:.5; cursor:wait; }
+  button.secondary { background:#2a303c; }
+  #status { margin-top:12px; font-size:14px; color:var(--muted); line-height:1.5; }
+  #status a { color:#6ea8fe; }
+  .reel { background:var(--card); border-radius:12px; padding:14px; margin-bottom:12px; }
+  .reel video { width:100%; border-radius:8px; background:#000; max-height:420px; }
+  .reel .rtitle { font-size:14px; font-weight:700; margin:8px 0 4px; }
+  .reel .rmeta { color:var(--muted); font-size:12px; margin-bottom:8px; }
+  .reel a.dl { display:inline-block; margin-top:8px; color:#fff; background:#2a303c; padding:8px 14px; border-radius:8px; text-decoration:none; font-size:13px; font-weight:600; }
+  .hint { font-size:12px; color:var(--muted); margin-top:8px; line-height:1.5; }
+  details { margin-top:14px; font-size:13px; color:var(--muted); }
+  details summary { cursor:pointer; color:var(--text); font-weight:600; }
+  details ol { margin:8px 0 0 18px; line-height:1.7; }
+  code { background:#0f1115; padding:2px 6px; border-radius:4px; font-size:12px; }
+</style>
+</head>
+<body>
+<h1>🎬 News Reel Studio</h1>
+<div class="sub" id="updatedLine">Loading trending news…</div>
+
+<div class="panel">
+  <h2>⚙️ Setup (one time)</h2>
+  <div class="row"><input type="text" id="cfgOwner" placeholder="GitHub username"></div>
+  <div class="row"><input type="password" id="cfgToken" placeholder="GitHub token (repo scope)"></div>
+  <div class="row"><input type="password" id="cfgKey" placeholder="Build key (team secret)"></div>
+  <button class="secondary" id="saveCfg">Save settings</button>
+  <div class="hint">Token &amp; key stay in this browser only (localStorage) — never in the code.</div>
+</div>
+
+<h2 style="margin:6px 0 12px;font-size:17px;">🔥 Trending now <span style="font-weight:400;color:var(--muted);font-size:13px;">— tap to select</span></h2>
+<div id="stories"></div>
+
+<div class="panel">
+  <h2>🎥 Build reel</h2>
+  <button id="buildBtn">Build reel from selected</button>
+  <div id="status"></div>
+  <div class="hint">No selection = auto mode (top 5). Build takes ~10–15 min. You can close this page; the video appears under “Your reels”.</div>
+</div>
+
+<h2 style="margin:6px 0 12px;font-size:17px;">📼 Your reels</h2>
+<div id="reels"><div class="sub">Loading…</div></div>
+
+<details>
+  <summary>How to get a GitHub token</summary>
+  <ol>
+    <li>Go to <code>github.com/settings/tokens/new</code></li>
+    <li>Note: <code>news-reel</code>, expiration: no expiration (or 1 year)</li>
+    <li>Tick <code>repo</code> scope, generate, paste above.</li>
+    <li>Share only the <b>build key</b> with your team — never the token.</li>
+  </ol>
+</details>
+
+<script>
+const REPO = "news-reel-studio";
+const $ = id => document.getElementById(id);
+const store = {
+  get k(){ return {
+    owner: localStorage.getItem("nrs_owner")||"",
+    token: localStorage.getItem("nrs_token")||"",
+    key: localStorage.getItem("nrs_key")||"" }; },
+  set(v){ localStorage.setItem("nrs_owner",v.owner); localStorage.setItem("nrs_token",v.token); localStorage.setItem("nrs_key",v.key); }
+};
+function cfg(){ return store.k; }
+function api(path, opts={}){
+  const c = cfg();
+  opts.headers = Object.assign({ "Accept":"application/vnd.github+json" }, opts.headers||{});
+  if (c.token) opts.headers["Authorization"] = "Bearer " + c.token;
+  return fetch(`https://api.github.com/repos/${c.owner}/${REPO}${path}`, opts);
+}
+function ageStr(h){
+  if (h < 1) return Math.round(h*60)+"m ago";
+  if (h < 24) return Math.round(h)+"h ago";
+  return Math.round(h/24)+"d ago";
+}
+function badge(s){
+  if (s.crime) return '<span class="badge crime">CRIME ALERT</span>';
+  return '<span class="badge world">WORLD NEWS</span>';
+}
+async function loadStories(){
+  try{
+    const r = await fetch("stories.json", {cache:"no-store"});
+    const data = await r.json();
+    $("updatedLine").textContent = "Trending — updated " + new Date(data.updated).toLocaleString();
+    const box = $("stories"); box.innerHTML = "";
+    window._stories = data.stories;
+    data.stories.forEach(s=>{
+      const d = document.createElement("div");
+      d.className = "card"; d.dataset.id = s.id;
+      d.innerHTML = `<input type="checkbox"><div><div>${badge(s)}</div><div class="title">${s.title}</div><div class="meta">${s.source} · ${ageStr(s.age_hours||99)}</div></div>`;
+      d.onclick = e => { if(e.target.tagName!=="INPUT"){ const cb=d.querySelector("input"); cb.checked=!cb.checked; } d.classList.toggle("selected", d.querySelector("input").checked); };
+      box.appendChild(d);
+    });
+  }catch(e){ $("updatedLine").textContent = "Could not load stories.json yet — the scheduled refresh will create it soon."; }
+}
+function selectedIds(){
+  return [...document.querySelectorAll(".card.selected")].map(c=>+c.dataset.id);
+}
+async function loadReels(){
+  const c = cfg(); const box = $("reels");
+  if(!c.owner){ box.innerHTML = '<div class="sub">Enter your GitHub username in Setup to see reels.</div>'; return; }
+  try{
+    const r = await fetch(`https://api.github.com/repos/${c.owner}/${REPO}/releases?per_page=10`);
+    const rels = await r.json();
+    if(!rels.length){ box.innerHTML = '<div class="sub">No reels yet — build your first one above.</div>'; return; }
+    box.innerHTML = "";
+    rels.forEach(rel=>{
+      const mp4 = (rel.assets||[]).find(a=>a.name.endsWith(".mp4"));
+      if(!mp4) return;
+      const d = document.createElement("div"); d.className="reel";
+      d.innerHTML = `<video controls preload="metadata" src="${mp4.browser_download_url}"></video>
+        <div class="rtitle">${rel.name}</div>
+        <div class="rmeta">${new Date(rel.published_at).toLocaleString()} · ${(mp4.size/1048576).toFixed(1)} MB</div>
+        <a class="dl" href="${mp4.browser_download_url}">⬇ Download MP4</a>`;
+      box.appendChild(d);
+    });
+  }catch(e){ box.innerHTML = '<div class="sub">Could not load reels.</div>'; }
+}
+$("saveCfg").onclick = ()=>{
+  store.set({owner:$("cfgOwner").value.trim(), token:$("cfgToken").value.trim(), key:$("cfgKey").value.trim()});
+  $("status").textContent = ""; alert("Saved.");
+  loadReels();
+};
+$("buildBtn").onclick = async ()=>{
+  const c = cfg();
+  if(!c.owner || !c.token || !c.key){ alert("Pehle Setup me username, token aur build key dalo."); return; }
+  const ids = selectedIds();
+  const btn = $("buildBtn"); btn.disabled = true; btn.textContent = "Starting build…";
+  $("status").innerHTML = "Triggering build…";
+  try{
+    const r = await api("/dispatches", { method:"POST",
+      body: JSON.stringify({ event_type:"build-reel", client_payload:{ story_ids: ids, build_key: c.key } }) });
+    if(r.status === 204){
+      $("status").innerHTML = "✅ Build started" + (ids.length?` for stories ${ids.join(", ")}`:" (auto: top 5)") + ".<br>~10–15 min me “Your reels” me video aa jayegi. Page band kar sakti ho.";
+    } else {
+      $("status").textContent = "Failed to trigger ("+r.status+"). Token scope check karo (repo).";
+    }
+  }catch(e){ $("status").textContent = "Network error: "+e.message; }
+  btn.disabled = false; btn.textContent = "Build reel from selected";
+};
+(function init(){
+  const c = cfg();
+  $("cfgOwner").value = c.owner; $("cfgToken").value = c.token; $("cfgKey").value = c.key;
+  loadStories(); loadReels();
+  setInterval(loadReels, 120000);
+})();
+</script>
+</body>
+</html>
