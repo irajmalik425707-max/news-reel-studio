@@ -1,0 +1,44 @@
+name: Refresh Trending
+
+# Keeps web/stories.json fresh so the site always shows today's trending news.
+on:
+  schedule:
+    - cron: "0 */6 * * *"   # every 6 hours
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Fetch trending stories
+        run: |
+          python3 pipeline/fetch_news.py 10 /tmp/stories.json
+          python3 - <<'EOF'
+          import json, datetime
+          stories = json.load(open('/tmp/stories.json'))
+          payload = {
+              "updated": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+              "stories": stories,
+          }
+          json.dump(payload, open('web/stories.json', 'w'), indent=1, ensure_ascii=False)
+          print(f"wrote {len(stories)} stories")
+          EOF
+
+      - name: Commit if changed
+        run: |
+          git config user.name "news-reel-bot"
+          git config user.email "news-reel-bot@users.noreply.github.com"
+          git add web/stories.json
+          git diff --cached --quiet || (git commit -m "trending refresh $(date -u +%Y-%m-%dT%H:%M)" && git push)
