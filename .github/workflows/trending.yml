@@ -24,7 +24,7 @@ jobs:
 
       - name: Fetch trending stories
         run: |
-          python3 pipeline/fetch_news.py 10 /tmp/stories.json
+          python3 pipeline/fetch_news.py 16 /tmp/stories.json
           python3 - <<'EOF'
           import json, datetime
           stories = json.load(open('/tmp/stories.json'))
