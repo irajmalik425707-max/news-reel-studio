@@ -115,40 +115,26 @@ def main():
                           f"concat=n={nshots}:v=1:a=0[vbase]")
                 print(f"  vseg_{s['id']}: using {nshots} AI shots with cuts")
 
-        # ---- overlays ----
-        lines = wrap(s["headline"])
-        n = len(lines)
-        fsize = 60
-        card_h = 40 + n * 78 + 40
-        card_y = H - card_h - 90
+        # ---- overlays: clean news look (no clutter) ----
         kicker = s.get("kicker", "TOP NEWS").upper()
         kcol = "0xC81E1E" if "CRIME" in kicker else "0x1E5AC8"
 
         filters = [] if use_filter_complex else [base_vf]
-        # readability gradients
+        # readability gradient (top only — captions sit lower now)
         filters.append(f"drawbox=x=0:y=0:w={W}:h=300:c=black@0.55:t=fill")
-        filters.append(f"drawbox=x=0:y={H-760}:w={W}:h=760:c=black@0.55:t=fill")
         # kicker badge
         filters.append(f"drawbox=x=60:y=90:w=340:h=84:c={kcol}:t=fill")
         filters.append(
             f"drawtext=fontfile={FONT_BLK}:text='{esc(kicker)}':fontsize=44:"
             f"fontcolor=white:x=80:y=108")
-        # story counter
-        filters.append(
-            f"drawtext=fontfile={FONT_R}:text='{idx+1} / {len(segs)}':fontsize=40:"
-            f"fontcolor=white:x={W-180}:y=108")
-        # headline card
-        filters.append(f"drawbox=x=40:y={card_y}:w={W-80}:h={card_h}:c=black@0.62:t=fill")
-        y = card_y + 44
-        for ln in lines:
+        # location bug for news-broadcast feel
+        place = s.get("place", "")
+        if place:
             filters.append(
-                f"drawtext=fontfile={FONT_B}:text='{esc(ln)}':fontsize={fsize}:"
-                f"fontcolor=white:x=80:y={y}")
-            y += 78
-        # source line (just below headline card)
-        filters.append(
-            f"drawtext=fontfile={FONT_R}:text='{esc('Source: ' + s.get('source',''))}':"
-            f"fontsize=32:fontcolor=white@0.8:x=80:y={H-72}")
+                f"drawbox=x=64:y=192:w={60 + len(place) * 26}:h=58:c=black@0.5:t=fill")
+            filters.append(
+                f"drawtext=fontfile={FONT_B}:text='{esc(place.upper())}':"
+                f"fontsize=36:fontcolor=white:x=84:y=202")
         # progress bar (overall reel progress)
         bar_w = 14
         filters.append(
