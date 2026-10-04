@@ -18,25 +18,15 @@ def duration(path):
                        capture_output=True, text=True)
     return float(p.stdout.strip())
 
-def to_ssml(text):
-    """Wrap the script in SSML with natural pauses so delivery doesn't sound flat."""
-    import re, html as htmllib
-    parts = re.split(r"(?<=[.!?])\s+", text.strip())
-    inner = '<break time="450ms"/>'.join(htmllib.escape(p) for p in parts if p)
-    return (f'<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" '
-            f'xml:lang="en-US"><voice name="{VOICE}">'
-            f'<prosody rate="-4%" pitch="+2%">{inner}</prosody>'
-            f"</voice></speak>")
-
 async def synth_edge(text, out):
     import edge_tts
-    ssml = to_ssml(text)
+    # Slightly slower rate + a touch of pitch for a natural news-anchor delivery.
+    # (edge-tts builds its own SSML, so we pass plain text plus prosody params.)
     try:
-        await edge_tts.Communicate(ssml, VOICE).save(out)
+        await edge_tts.Communicate(text, VOICE, rate="-4%", pitch="+4%").save(out)
     except Exception:
         # fallback voice if the primary isn't available
-        ssml2 = ssml.replace(VOICE, FALLBACK_VOICE)
-        await edge_tts.Communicate(ssml2, FALLBACK_VOICE).save(out)
+        await edge_tts.Communicate(text, FALLBACK_VOICE, rate="-4%", pitch="+4%").save(out)
 
 def synth_gtts(text, out):
     from gtts import gTTS
