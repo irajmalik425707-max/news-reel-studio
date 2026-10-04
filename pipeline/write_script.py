@@ -9,11 +9,53 @@ text = spoken-form voiceover, ~40-60 words: hook + description condensed + close
 import json, os, re, sys
 
 CLOSERS = [
-    "We'll keep following this story as it develops.",
-    "More updates as this story unfolds.",
-    "Stay tuned — this story is still developing.",
-    "We'll bring you more as details emerge.",
+    "Police are on the scene. We'll update you as more comes in.",
+    "An investigation is underway — stay with us for updates.",
+    "Authorities are piecing it together. More to come.",
+    "This story is still developing — we'll keep you posted.",
 ]
+
+def extract_place(title):
+    """Pull a location out of the headline for the hook, e.g.
+    'Man stabbed on South Side of Syracuse' -> 'Syracuse'.
+    Takes the LAST prepositional location (usually the most specific)."""
+    matches = re.findall(
+        r"\b(?:in|on|at|of|near)\s+([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+){0,2})",
+        title or "")
+    if not matches:
+        return None
+    place = matches[-1].strip()
+    place = re.sub(r"\s+(Side|Area|County|Street|Avenue|City|Town)$", "", place)
+    return place or None
+
+CRIME_HOOKS = [
+    "Breaking news out of {place} —",
+    "Shocking developments in {place} —",
+    "A {place} neighborhood is on edge tonight —",
+]
+
+def crime_hook(title):
+    place = extract_place(title) or "the city"
+    import random
+    h = random.choice(CRIME_HOOKS).format(place=place)
+    return h
+
+def news_text(story, i):
+    crime = bool(story.get("crime"))
+    title = story.get("title", "")
+    if crime:
+        kicker = "CRIME ALERT"
+        hook = crime_hook(title)
+    elif "trending" in (story.get("feed", "") or ""):
+        kicker, hook = "TRENDING", "Trending right now —"
+    else:
+        kicker, hook = "WORLD NEWS", "In world news —"
+    body = condense(story, 52)
+    # make the body sound like an anchor, not a headline read-out
+    body = re.sub(r"(?i)^a\s+", "One ", body, count=1)
+    closer = CLOSERS[i % len(CLOSERS)]
+    text = f"{hook} {body} {closer}"
+    return kicker, text
 
 def clean_sentence(s):
     s = re.sub(r"\s+", " ", s).strip()
@@ -102,16 +144,7 @@ def main():
     stories = json.load(open(src))
     segs = []
     for i, s in enumerate(stories):
-        crime = bool(s.get("crime"))
-        if crime:
-            kicker, hook = "CRIME ALERT", "Crime alert."
-        elif "trending" in (s.get("feed", "") or ""):
-            kicker, hook = "TRENDING", "Trending now."
-        else:
-            kicker, hook = "WORLD NEWS", "In world news."
-        body = condense(s, 48)
-        closer = CLOSERS[i % len(CLOSERS)]
-        text = f"{hook} {body} {closer}"
+        kicker, text = news_text(s, i)
         segs.append({
             "id": s.get("id", i + 1),
             "kicker": kicker,
