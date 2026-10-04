@@ -7,6 +7,12 @@ GitHub Pages (website) + GitHub Actions (backend). No servers, no API keys.
 
 - **Website** (`web/`, GitHub Pages): trending news list, tap stories to
   select, "Build Reel" button, reel history with watch/download.
+- **Auto reels**: `build-reel.yml` runs on schedule (twice daily) and builds
+  a reel from the top 5 trending stories — no setup needed, videos just
+  appear under "Your reels".
+- **Manual builds** (optional): select stories on the site and press
+  "Build Reel" — needs the one-time Setup (GitHub username + token +
+  build key) on the site.
 - **Trending refresh** (`.github/workflows/trending.yml`): every 6 hours
   fetches Google News RSS and updates `web/stories.json`.
 - **Reel build** (`.github/workflows/build-reel.yml`): triggered from the
