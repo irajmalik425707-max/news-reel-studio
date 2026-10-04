@@ -59,6 +59,11 @@ jobs:
         run: |
           pip install yt-dlp edge-tts gTTS faster-whisper
           sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg fonts-noto
+          # install bundled reel font for captions
+          mkdir -p ~/.local/share/fonts
+          cp pipeline/fonts/*.ttf ~/.local/share/fonts/ 2>/dev/null || true
+          fc-cache -f ~/.local/share/fonts >/dev/null 2>&1 || true
+          fc-list | grep -i anton || echo "anton not in fc-list"
           ffmpeg -version | head -1
           yt-dlp --version
 
