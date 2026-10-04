@@ -60,10 +60,11 @@ def main():
         frames = int(dur * FPS)
         img = os.path.join(work, f"img_{s['id']}.jpg")
         thumb = os.path.join(work, f"thumb_{s['id']}.jpg")
+        ai = os.path.join(work, f"ai_{s['id']}.jpg")
         clip = os.path.join(work, f"clip_{s['id']}.mp4")
         vfile = os.path.join(work, f"vseg_{s['id']}.mp4")
 
-        # Visual priority: real video clip > YouTube thumbnail > og:image > gradient
+        # Visual priority: real video clip > AI visual > YouTube thumbnail > og:image > gradient
         if os.path.exists(clip):
             inp = ["-stream_loop", "-1", "-i", clip]
             vf = (f"scale=1080:1920:force_original_aspect_ratio=increase,"
@@ -80,7 +81,7 @@ def main():
                 f"zoompan={zb}:d={frames}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s={W}x{H}:fps={FPS},"
                 f"format=yuv420p"
             )
-            use_img = thumb if os.path.exists(thumb) else img
+            use_img = ai if os.path.exists(ai) else (thumb if os.path.exists(thumb) else img)
             if os.path.exists(use_img):
                 inp = ["-loop", "1", "-i", use_img]
                 print(f"  vseg_{s['id']}: using image {os.path.basename(use_img)}")
