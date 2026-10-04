@@ -70,9 +70,12 @@ def main():
             continue
         print(f"  [{sid}] {s['title'][:55]}")
         img = None
-        if s.get("link"):
+        link = s.get("link", "")
+        # news.google.com article pages only carry the Google News logo as
+        # og:image — never useful. Skip them instead of downloading the logo.
+        if link and "news.google.com" not in link:
             print("    trying og:image...")
-            img = og_image(s["link"])
+            img = og_image(link)
         if not img and s.get("image"):
             img = s["image"]
         if img and img.startswith("http"):
